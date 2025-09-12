@@ -105,6 +105,16 @@ def supported_extensions(flat_formats=True):
     formats["Numpy binary files"] = set(extensions)
     formats["Coherent X-Ray Imaging files"] = {"*.cxi"}
     formats["FIO files"] = {"*.fio"}
+
+    # Add MDA file support
+    try:
+        from silx.io import mdah5
+
+        if mdah5.supported_extensions():
+            formats["MDA files"] = mdah5.supported_extensions()
+    except ImportError:
+        pass
+
     return formats
 
 
@@ -589,6 +599,19 @@ def _open_local_file(filename):
                 (sys.exc_info(), "File '%s' can't be read as fio file." % filename)
             )
 
+        # Try MDA files
+        if filename.lower().endswith(".mda"):
+            try:
+                from . import mdah5
+
+                return mdah5.File(filename)
+            except ImportError:
+                debugging_info.append((sys.exc_info(), "MDA module not available."))
+            except OSError:
+                debugging_info.append(
+                    (sys.exc_info(), "File '%s' can't be read as MDA file." % filename)
+                )
+
     finally:
         for exc_info, message in debugging_info:
             logger.debug(message, exc_info=exc_info)
@@ -678,6 +701,7 @@ def open(filename):  # pylint:disable=redefined-builtin
     - raster files exposed as a NeXus layout (if `fabio` is installed)
     - fio files exposed as a NeXus layout
     - Numpy files ('npy' and 'npz' files)
+    - MDA files exposed as an HDF5-like layout (if `mda` module is available)
 
     The filename can be trailled an HDF5 path using the separator `::`. In this
     case the object returned is a proxy to the target node, implementing the
@@ -696,7 +720,18 @@ def open(filename):  # pylint:disable=redefined-builtin
         # That's a local file
         if not url.is_valid():
             raise OSError("URL '%s' is not valid" % filename)
-        h5_file = _open_local_file(url.file_path())
+
+        # Check if it's an MDA file
+        file_path = url.file_path()
+        if file_path.lower().endswith(".mda"):
+            try:
+                from silx.io import mdah5
+
+                h5_file = mdah5.File(file_path)
+            except ImportError:
+                raise OSError("MDA module not available. Cannot read MDA files.")
+        else:
+            h5_file = _open_local_file(file_path)
     elif url.scheme() in ("http", "https"):
         return _open_url_with_h5pyd(filename)
     else:
@@ -760,6 +795,16 @@ def _get_classes_type():
         _CLASSES_TYPE[h5pyd.SoftLink] = H5Type.SOFT_LINK
         _CLASSES_TYPE[h5pyd.HardLink] = H5Type.HARD_LINK
         _CLASSES_TYPE[h5pyd.ExternalLink] = H5Type.EXTERNAL_LINK
+
+    # Add MDA classes
+    try:
+        from . import mdah5
+
+        _CLASSES_TYPE[mdah5.MDADataset] = H5Type.DATASET
+        _CLASSES_TYPE[mdah5.MDAGroup] = H5Type.GROUP
+        _CLASSES_TYPE[mdah5.MDAFile] = H5Type.FILE
+    except ImportError:
+        pass  # MDA module not available
 
     return _CLASSES_TYPE
 
