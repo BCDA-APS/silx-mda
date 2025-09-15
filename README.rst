@@ -1,11 +1,18 @@
 
-silx toolkit
-============
+silx-mda: MDA File Integration Test
+===================================
 
 .. |silxView| image:: http://www.silx.org/doc/silx/img/silx-view-v1-0.gif
    :height: 480px
 
-The purpose of the *silx* project is to provide a collection of Python packages to support the
+**⚠️ EXPERIMENTAL/TEST REPOSITORY ⚠️**
+
+This is a **test repository** exploring MDA file format integration into the silx toolkit.
+This is **NOT** an official silx release and should be used for testing purposes only.
+
+**Original silx project**: https://github.com/silx-kit/silx
+
+The purpose of the original *silx* project is to provide a collection of Python packages to support the
 development of data assessment, reduction and analysis applications at synchrotron
 radiation facilities.
 *silx* aims to provide reading/writing tools for different file formats, data reduction routines
@@ -17,6 +24,7 @@ The current version features:
   `SPEC <https://certif.com/spec.html>`_ and
   `FabIO <http://www.silx.org/doc/fabio/dev/getting_started.html#list-of-file-formats-that-fabio-can-read-and-write>`_
   images file formats.
+* **EXPERIMENTAL**: MDA file format support (this test repository only)
 * OpenCL-based data processing: image alignment (SIFT),
   image processing (median filter, histogram),
   filtered backprojection for tomography,
@@ -41,23 +49,36 @@ The current version features:
 Installation
 ------------
 
-To install silx (and all its dependencies), run:
+**For the official silx release** (recommended for production use):
 
 .. code-block:: bash
 
     pip install silx[full]
 
-To install silx with a minimal set of dependencies, run:
+**For this test version with MDA support** (experimental only):
 
 .. code-block:: bash
 
-    pip install silx
+    pip install -e .[full]
 
-Or using Anaconda on Linux and MacOS:
+This will install silx in editable mode with the experimental MDA file support.
 
-.. code-block:: bash
+MDA File Support
+----------------
 
-    conda install silx -c conda-forge
+This test repository includes experimental support for MDA (Multi-Dimensional Array) file format:
+
+.. code-block:: python
+
+    conda activate silx-mda
+    silx view scan.mda
+
+The MDA integration provides:
+* HDF5-like interface for MDA files
+* Integration with silx viewer for visualization
+* Access to positioner and detector data
+
+**Note**: This is experimental code and may not be stable or complete.
 
 Unofficial packages for different distributions are available:
 
@@ -97,9 +118,11 @@ Some examples of sample code using silx are provided with the
 License
 -------
 
-The source code of *silx* is licensed under the MIT license.
+This test repository is based on the original *silx* project, which is licensed under the MIT license.
 See the `LICENSE <https://github.com/silx-kit/silx/blob/main/LICENSE>`_ and
 `copyright <https://github.com/silx-kit/silx/blob/main/copyright>`_ files for details.
+
+The MDA integration code in this repository is also provided under the MIT license.
 
 Citation
 --------
