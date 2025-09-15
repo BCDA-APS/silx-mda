@@ -46,7 +46,7 @@ try:
     import os
 
     # Try standard import
-    from synApps_mdalib import mda
+    from synApps_mdalib_backup import mda
 
     _MDA_AVAILABLE = True
 except ImportError:
@@ -146,6 +146,86 @@ class MDADataset(commonh5.LazyLoadableDataset):
         return None
 
     @property
+    def maxshape(self):
+        """Return maximum shape (same as shape for MDA data)"""
+        return self.shape
+
+    @property
+    def fillvalue(self):
+        """Return fill value (not applicable for MDA data)"""
+        return None
+
+    @property
+    def fletcher32(self):
+        """Return fletcher32 checksum flag (not applicable for MDA data)"""
+        return False
+
+    @property
+    def shuffle(self):
+        """Return shuffle filter flag (not applicable for MDA data)"""
+        return False
+
+    @property
+    def scaleoffset(self):
+        """Return scaleoffset filter (not applicable for MDA data)"""
+        return None
+
+    @property
+    def track_times(self):
+        """Return track times flag (not applicable for MDA data)"""
+        return False
+
+    @property
+    def track_order(self):
+        """Return track order flag (not applicable for MDA data)"""
+        return False
+
+    @property
+    def dims(self):
+        """Return dimension scales (empty for MDA datasets)"""
+
+        # Create a mock dims object like h5py
+        class MockDims:
+            def __init__(self, dataset):
+                self.dataset = dataset
+
+            def __len__(self):
+                return len(self.dataset.shape)
+
+            def __getitem__(self, key):
+                return []
+
+            def __iter__(self):
+                return iter([] for _ in range(len(self.dataset.shape)))
+
+        return MockDims(self)
+
+    @property
+    def is_scale(self):
+        """Return whether this dataset is a dimension scale"""
+        return False
+
+    @property
+    def ref(self):
+        """Return HDF5 object reference (not supported for MDA)"""
+
+        # Create a mock reference
+        class MockRef:
+            pass
+
+        return MockRef()
+
+    @property
+    def regionref(self):
+        """Return region reference proxy (not supported for MDA)"""
+
+        # Create a mock region reference proxy
+        class MockRegionRef:
+            pass
+
+        return MockRegionRef()
+
+    @property
     def external(self):
         """Return external file information (MDA files are not external)"""
         return None
@@ -219,23 +299,47 @@ class MDADataset(commonh5.LazyLoadableDataset):
             return self.file
         elif name == "name":
             return self.name
+        elif name == "maxshape":
+            return self.maxshape
+        elif name == "fillvalue":
+            return self.fillvalue
+        elif name == "fletcher32":
+            return self.fletcher32
+        elif name == "shuffle":
+            return self.shuffle
+        elif name == "scaleoffset":
+            return self.scaleoffset
+        elif name == "track_times":
+            return self.track_times
+        elif name == "track_order":
+            return self.track_order
+        elif name == "dims":
+            return self.dims
+        elif name == "is_scale":
+            return self.is_scale
+        elif name == "ref":
+            return self.ref
+        elif name == "regionref":
+            return self.regionref
 
-        # Return None for any other missing attributes to prevent errors
-        return None
+        # For any other missing attributes, raise AttributeError to be more explicit
+        raise AttributeError(
+            f"'{self.__class__.__name__}' object has no attribute '{name}'"
+        )
 
     @property
     def h5_class(self):
         """Returns the HDF5 class which is mimicked by this class."""
-        from . import utils
+        from silx.io.utils import H5Type
 
-        return utils.H5Type.DATASET
+        return H5Type.DATASET
 
     @property
     def h5Class(self):
         """Returns the HDF5 class which is mimicked by this class (GUI compatibility)."""
-        from . import utils
+        from silx.io.utils import H5Type
 
-        return utils.H5Type.DATASET
+        return H5Type.DATASET
 
     @property
     def name(self):
@@ -444,13 +548,19 @@ class MDAGroup(commonh5.Group):
             else:
                 result = self._children.get(key, default)
 
-        # Handle getlink parameter - just return the original object
-        if getlink and result is not None:
-            return result
+        # Handle getlink and getclass parameters
+        if getlink and getclass and result is not None:
+            # When both getlink=True and getclass=True, return the h5py.HardLink class
+            import h5py
 
-        # Handle getclass parameter
-        if getclass and result is not None:
-            # Return the actual Python class, not the H5Type enum
+            return h5py.HardLink
+        elif getlink and result is not None:
+            # When only getlink=True, return an h5py.HardLink instance
+            import h5py
+
+            return h5py.HardLink()
+        elif getclass and result is not None:
+            # When only getclass=True, return the actual Python class
             return result.__class__
 
         return result
@@ -483,16 +593,16 @@ class MDAGroup(commonh5.Group):
     @property
     def h5_class(self):
         """Returns the HDF5 class which is mimicked by this class."""
-        from . import utils
+        from silx.io.utils import H5Type
 
-        return utils.H5Type.GROUP
+        return H5Type.GROUP
 
     @property
     def h5Class(self):
         """Returns the HDF5 class which is mimicked by this class (GUI compatibility)."""
-        from . import utils
+        from silx.io.utils import H5Type
 
-        return utils.H5Type.GROUP
+        return H5Type.GROUP
 
     @property
     def name(self):
@@ -670,13 +780,19 @@ class MDAFile(commonh5.File):
             else:
                 result = self._children.get(key, default)
 
-        # Handle getlink parameter - just return the original object
-        if getlink and result is not None:
-            return result
+        # Handle getlink and getclass parameters
+        if getlink and getclass and result is not None:
+            # When both getlink=True and getclass=True, return the h5py.HardLink class
+            import h5py
 
-        # Handle getclass parameter
-        if getclass and result is not None:
-            # Return the actual Python class, not the H5Type enum
+            return h5py.HardLink
+        elif getlink and result is not None:
+            # When only getlink=True, return an h5py.HardLink instance
+            import h5py
+
+            return h5py.HardLink()
+        elif getclass and result is not None:
+            # When only getclass=True, return the actual Python class
             return result.__class__
 
         return result
@@ -709,16 +825,16 @@ class MDAFile(commonh5.File):
     @property
     def h5_class(self):
         """Returns the HDF5 class which is mimicked by this class."""
-        from . import utils
+        from silx.io.utils import H5Type
 
-        return utils.H5Type.FILE
+        return H5Type.FILE
 
     @property
     def h5Class(self):
         """Returns the HDF5 class which is mimicked by this class (GUI compatibility)."""
-        from . import utils
+        from silx.io.utils import H5Type
 
-        return utils.H5Type.FILE
+        return H5Type.FILE
 
     @property
     def name(self):
