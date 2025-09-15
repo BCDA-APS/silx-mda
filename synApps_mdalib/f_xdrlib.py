@@ -16,11 +16,13 @@ from typing import Any, List, Optional, Union
 
 class Error(Exception):
     """Exception raised for XDR errors."""
+
     pass
 
 
 class ConversionError(Error):
     """Exception raised for conversion errors."""
+
     pass
 
 
@@ -73,7 +75,7 @@ class Packer:
         if not isinstance(n, int) or n < 0:
             raise ConversionError("fstring length must be >= 0")
         if isinstance(s, str):
-            s = s.encode('utf-8')
+            s = s.encode("utf-8")
         if len(s) != n:
             raise ConversionError("fstring length mismatch")
         self._buffer.extend(s)
@@ -89,13 +91,13 @@ class Packer:
     def pack_string(self, s: Union[str, bytes]) -> None:
         """Pack a variable length string."""
         if isinstance(s, str):
-            s = s.encode('utf-8')
+            s = s.encode("utf-8")
         self.pack_uint(len(s))
         self._buffer.extend(s)
         # Pad to 4-byte boundary
         padding = (4 - (len(s) % 4)) % 4
         if padding:
-            self._buffer.extend(b'\x00' * padding)
+            self._buffer.extend(b"\x00" * padding)
 
     def pack_opaque(self, data: bytes) -> None:
         """Pack variable length opaque data."""
@@ -104,7 +106,7 @@ class Packer:
         # Pad to 4-byte boundary
         padding = (4 - (len(data) % 4)) % 4
         if padding:
-            self._buffer.extend(b'\x00' * padding)
+            self._buffer.extend(b"\x00" * padding)
 
     def pack_bytes(self, data: bytes) -> None:
         """Pack variable length bytes (alias for pack_opaque)."""
@@ -145,7 +147,7 @@ class Unpacker:
 
     def get_buffer(self) -> bytes:
         """Get the remaining data as bytes."""
-        return self._data[self._position:]
+        return self._data[self._position :]
 
     def done(self) -> None:
         """Check if all data has been consumed."""
@@ -156,7 +158,7 @@ class Unpacker:
         """Unpack an unsigned 32-bit integer."""
         if self._position + 4 > len(self._data):
             raise Error("data too short")
-        value = struct.unpack(">I", self._data[self._position:self._position + 4])[0]
+        value = struct.unpack(">I", self._data[self._position : self._position + 4])[0]
         self._position += 4
         return value
 
@@ -164,7 +166,7 @@ class Unpacker:
         """Unpack a signed 32-bit integer."""
         if self._position + 4 > len(self._data):
             raise Error("data too short")
-        value = struct.unpack(">i", self._data[self._position:self._position + 4])[0]
+        value = struct.unpack(">i", self._data[self._position : self._position + 4])[0]
         self._position += 4
         return value
 
@@ -172,7 +174,7 @@ class Unpacker:
         """Unpack a signed 64-bit integer."""
         if self._position + 8 > len(self._data):
             raise Error("data too short")
-        value = struct.unpack(">q", self._data[self._position:self._position + 8])[0]
+        value = struct.unpack(">q", self._data[self._position : self._position + 8])[0]
         self._position += 8
         return value
 
@@ -180,7 +182,7 @@ class Unpacker:
         """Unpack a 32-bit float."""
         if self._position + 4 > len(self._data):
             raise Error("data too short")
-        value = struct.unpack(">f", self._data[self._position:self._position + 4])[0]
+        value = struct.unpack(">f", self._data[self._position : self._position + 4])[0]
         self._position += 4
         return value
 
@@ -188,7 +190,7 @@ class Unpacker:
         """Unpack a 64-bit float."""
         if self._position + 8 > len(self._data):
             raise Error("data too short")
-        value = struct.unpack(">d", self._data[self._position:self._position + 8])[0]
+        value = struct.unpack(">d", self._data[self._position : self._position + 8])[0]
         self._position += 8
         return value
 
@@ -196,7 +198,7 @@ class Unpacker:
         """Unpack a fixed length string."""
         if self._position + n > len(self._data):
             raise Error("data too short")
-        value = self._data[self._position:self._position + n]
+        value = self._data[self._position : self._position + n]
         self._position += n
         return value
 
@@ -209,7 +211,7 @@ class Unpacker:
         length = self.unpack_uint()
         if self._position + length > len(self._data):
             raise Error("data too short")
-        value = self._data[self._position:self._position + length]
+        value = self._data[self._position : self._position + length]
         self._position += length
         # Skip padding to 4-byte boundary
         padding = (4 - (length % 4)) % 4
