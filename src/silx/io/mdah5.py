@@ -46,7 +46,7 @@ try:
     import os
 
     # Try standard import
-    from synApps_mdalib_backup import mda
+    from synApps_mdalib import mda
 
     _MDA_AVAILABLE = True
 except ImportError:
