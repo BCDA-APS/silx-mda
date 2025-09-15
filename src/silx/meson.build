@@ -28,3 +28,6 @@ pure_subdirs = [
 foreach subdir: pure_subdirs
   install_subdir(subdir, install_dir: silx_dir)
 endforeach
+
+# Install synApps_mdalib directory
+install_subdir('../../synApps_mdalib', install_dir: silx_dir / 'synApps_mdalib', strip_directory: true)

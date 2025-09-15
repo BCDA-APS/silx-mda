@@ -12,6 +12,7 @@ py.install_sources([
     'fioh5.py',
     'h5link_utils.py',
     'h5py_utils.py',
+    'mdah5.py',
     'octaveh5.py',
     'rawh5.py',
     'specfilewrapper.py',
