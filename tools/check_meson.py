@@ -18,18 +18,6 @@ EXCLUDED_FILES = {
 EXCLUDED_FILES = set(map(Path, EXCLUDED_FILES))
 """Files to ignore during the check"""
 
-# Files that are expected to be in the wheel but not under src/
-EXPECTED_WHEEL_FILES = {
-    "silx/synApps_mdalib/__init__.py",
-    "silx/synApps_mdalib/mda.py", 
-    "silx/synApps_mdalib/f_xdrlib.py",
-    "silx/synApps_mdalib/__pycache__/__init__.cpython-312.pyc",
-    "silx/synApps_mdalib/__pycache__/mda.cpython-312.pyc",
-    "silx/synApps_mdalib/__pycache__/f_xdrlib.cpython-312.pyc",
-}
-EXPECTED_WHEEL_FILES = set(map(Path, EXPECTED_WHEEL_FILES))
-"""Files that are expected to be in the wheel but not tracked by git under src/"""
-
 
 HEADER_SUFFIXES = ".h", ".hpp", ".pxd"
 
@@ -105,7 +93,7 @@ def main(repository_root: str, wheel_filename: str) -> bool:
         print(*map(str, missing_files))
         isvalid = False
 
-    unexpected_files = wheel_files - installable_files - EXPECTED_WHEEL_FILES
+    unexpected_files = wheel_files - installable_files
     if unexpected_files:
         print("ERROR: The following files are not expected to be in the wheel:")
         print(*map(str, unexpected_files))
