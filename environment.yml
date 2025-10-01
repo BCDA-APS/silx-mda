@@ -1,0 +1,27 @@
+name: silx-mda
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.12
+  - numpy
+  - h5py
+  - fabio
+  - packaging
+  - matplotlib
+  - scipy
+  - pyside6
+  - qtconsole
+  - python-dateutil
+  - pillow
+  - pint
+  - hdf5plugin
+  - meson-python
+  - cython
+  - ninja
+  - pip
+
+
+
+
+

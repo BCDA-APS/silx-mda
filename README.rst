@@ -59,7 +59,9 @@ Installation
 
 .. code-block:: bash
 
-    pip install -e .[full]
+    conda env create -f environment.yml
+    conda activate silx-mda
+    pip install -e .
 
 This will install silx in editable mode with the experimental MDA file support.
 
@@ -74,6 +76,7 @@ This test repository includes experimental support for MDA (Multi-Dimensional Ar
     silx view scan.mda
 
 The MDA integration provides:
+
 * HDF5-like interface for MDA files
 * Integration with silx viewer for visualization
 * Access to positioner and detector data
