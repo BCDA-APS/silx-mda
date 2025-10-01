@@ -86,7 +86,13 @@ class MDADataset(commonh5.LazyLoadableDataset):
         elif isinstance(self._data, list):
             # Handle nested lists (multi-dimensional data)
             if len(self._data) > 0 and isinstance(self._data[0], list):
-                return (len(self._data), len(self._data[0]))
+                # Check for deeper nesting (3D+ data)
+                if len(self._data[0]) > 0 and isinstance(self._data[0][0], list):
+                    # 3D data: [depth][height][width]
+                    return (len(self._data), len(self._data[0]), len(self._data[0][0]))
+                else:
+                    # 2D data: [height][width]
+                    return (len(self._data), len(self._data[0]))
             else:
                 return (len(self._data),)
         else:
