@@ -97,11 +97,17 @@ class MDADataset(commonh5.LazyLoadableDataset):
         """Return data type as numpy dtype"""
         import numpy as np
 
-        if hasattr(self._data, "dtype"):
+        # Convert data to numpy array if it's a list to get proper dtype
+        if isinstance(self._data, list):
+            try:
+                data = np.array(self._data, dtype=np.float64)
+                return data.dtype
+            except (ValueError, TypeError):
+                # If direct conversion fails, try to convert each row
+                data = np.array([np.array(row, dtype=np.float64) for row in self._data])
+                return data.dtype
+        elif hasattr(self._data, "dtype"):
             return self._data.dtype
-        elif isinstance(self._data, list) and len(self._data) > 0:
-            # Convert Python type to numpy dtype
-            return np.dtype(type(self._data[0]))
         else:
             # Convert Python type to numpy dtype
             return np.dtype(type(self._data))
@@ -363,9 +369,18 @@ class MDADataset(commonh5.LazyLoadableDataset):
 
         # Convert data to numpy array if it's a list
         if isinstance(self._data, list):
-            data = np.array(self._data)
+            # Ensure proper numeric conversion for 2D data
+            try:
+                data = np.array(self._data, dtype=np.float64)
+            except (ValueError, TypeError):
+                # If direct conversion fails, try to convert each row
+                data = np.array([np.array(row, dtype=np.float64) for row in self._data])
         else:
             data = self._data
+
+        # Ensure data is contiguous for plotting
+        if hasattr(data, "flags") and not data.flags.c_contiguous:
+            data = np.ascontiguousarray(data)
 
         # Handle different key types
         if key == ():  # Empty tuple - return all data
@@ -396,7 +411,12 @@ class MDADataset(commonh5.LazyLoadableDataset):
 
         # Convert data to numpy array if it's a list
         if isinstance(self._data, list):
-            data = np.array(self._data)
+            # Ensure proper numeric conversion for 2D data
+            try:
+                data = np.array(self._data, dtype=np.float64)
+            except (ValueError, TypeError):
+                # If direct conversion fails, try to convert each row
+                data = np.array([np.array(row, dtype=np.float64) for row in self._data])
         else:
             data = self._data
 
