@@ -247,6 +247,20 @@ class MDADataset(commonh5.LazyLoadableDataset):
         """Return whether this is a virtual dataset (MDA files are not virtual)"""
         return False
 
+    def __bool__(self):
+        """Return boolean value for the dataset"""
+        try:
+            data = self[()]
+            if hasattr(data, "size"):
+                # For numpy arrays, return True if not empty
+                return data.size > 0
+            else:
+                # For scalar values
+                return bool(data)
+        except:
+            # If we can't access the data, assume it exists
+            return True
+
     @property
     def virtual_sources(self):
         """Return virtual sources (MDA files are not virtual)"""
@@ -411,6 +425,18 @@ class MDADataset(commonh5.LazyLoadableDataset):
         else:
             return 1
 
+    def __array__(self, dtype=None):
+        """Convert dataset to numpy array for numpy operations"""
+        import numpy as np
+
+        # Get the data using __getitem__ which already handles conversion
+        data = self[()]
+
+        # Convert to requested dtype if specified
+        if dtype is not None:
+            return np.asarray(data, dtype=dtype)
+        return np.asarray(data)
+
     def read_direct(self, dest, source_sel=None, dest_sel=None):
         """Read data directly into a destination array (compatible with HDF5)"""
         import numpy as np
@@ -487,7 +513,7 @@ class MDAGroup(commonh5.Group):
             dataset = MDADataset(dataset_name, pos.data, attrs, parent=self)
             self._children[dataset_name] = dataset
 
-        # Add detectors as datasets
+        # Add detectors as datasets with axis information
         for i, det in enumerate(self._scan_dim.d):
             dataset_name = f"detector_{i:02d}_{det.fieldName}"
             attrs = {
@@ -495,8 +521,227 @@ class MDAGroup(commonh5.Group):
                 "description": det.desc,
                 "unit": det.unit,
             }
+
+            # Add axis information for proper plotting
+            if len(self._scan_dim.p) > 0 and len(det.data) > 0:
+                # Determine data dimensionality
+                data_dim = 1
+                if isinstance(det.data, list) and len(det.data) > 0:
+                    if isinstance(det.data[0], list):
+                        data_dim = 2
+                        if len(det.data[0]) > 0 and isinstance(det.data[0][0], list):
+                            data_dim = 3
+
+                # Add axis information
+                if data_dim == 1:
+                    attrs["interpretation"] = "spectrum"
+                    # For 1D data, add the positioner as an axis
+                    if len(self._scan_dim.p) > 0:
+                        pos = self._scan_dim.p[0]
+                        axis_name = f"axis_{pos.number:02d}_{pos.fieldName}"
+                        attrs["axes"] = axis_name
+                elif data_dim == 2:
+                    attrs["interpretation"] = "image"
+                    # For 2D data, add both positioners as axes
+                    if len(self._scan_dim.p) >= 2:
+                        axes_list = []
+                        for j in range(2):
+                            if j < len(self._scan_dim.p):
+                                pos = self._scan_dim.p[j]
+                                axis_name = f"axis_{pos.number:02d}_{pos.fieldName}"
+                                axes_list.append(axis_name)
+                            else:
+                                axes_list.append(".")
+                        attrs["axes"] = axes_list
+                elif data_dim == 3:
+                    attrs["interpretation"] = "image"
+                    # For 3D data, add all positioners as axes
+                    if len(self._scan_dim.p) >= 3:
+                        axes_list = []
+                        for j in range(3):
+                            if j < len(self._scan_dim.p):
+                                pos = self._scan_dim.p[j]
+                                axis_name = f"axis_{pos.number:02d}_{pos.fieldName}"
+                                axes_list.append(axis_name)
+                            else:
+                                axes_list.append(".")
+                        attrs["axes"] = axes_list
+
             dataset = MDADataset(dataset_name, det.data, attrs, parent=self)
             self._children[dataset_name] = dataset
+
+        # Create axis datasets for positioners
+        for i, pos in enumerate(self._scan_dim.p):
+            axis_name = f"axis_{pos.number:02d}_{pos.fieldName}"
+            axis_attrs = {
+                "name": pos.name,
+                "description": pos.desc,
+                "unit": pos.unit,
+            }
+
+            # For 2D data, we need to create 1D axis datasets
+            # The positioner data should be 1D, not 2D
+            if len(pos.data) > 0 and isinstance(pos.data[0], list):
+                # This is 2D positioner data, we need to extract the 1D coordinate
+                # For 2D scans, we need to find the coordinate that varies along each dimension
+                # Check if all rows are identical (1D scan) or if rows vary (2D scan)
+                first_row = pos.data[0]
+                all_rows_same = all(row == first_row for row in pos.data)
+
+                if all_rows_same:
+                    # This is a 1D scan - use the first row as the coordinate
+                    axis_data = first_row
+                else:
+                    # This is a 2D scan - extract the coordinate that varies
+                    # For the first axis, we want the coordinate that varies along rows
+                    # For the second axis, we want the coordinate that varies along columns
+                    if i == 0:  # First axis - extract first column (varies along rows)
+                        axis_data = [row[0] for row in pos.data]
+                    else:  # Second axis - extract first row (varies along columns)
+                        axis_data = pos.data[0]
+            else:
+                # This is already 1D data
+                axis_data = pos.data
+
+            axis_dataset = MDADataset(axis_name, axis_data, axis_attrs, parent=self)
+            self._children[axis_name] = axis_dataset
+
+        # Create NXdata groups for each detector with proper axis mapping
+        for i, det in enumerate(self._scan_dim.d):
+            if len(self._scan_dim.p) > 0 and len(det.data) > 0:
+                # Determine data dimensionality
+                data_dim = 1
+                if isinstance(det.data, list) and len(det.data) > 0:
+                    if isinstance(det.data[0], list):
+                        data_dim = 2
+                        if len(det.data[0]) > 0 and isinstance(det.data[0][0], list):
+                            data_dim = 3
+
+                # Create NXdata group for this detector
+                nxdata_name = f"nxdata_{i:02d}_{det.fieldName}"
+                nxdata_group = MDAGroup(nxdata_name, None, parent=self)
+
+                # Add signal dataset
+                signal_attrs = {
+                    "name": det.name,
+                    "description": det.desc,
+                    "unit": det.unit,
+                }
+                if data_dim == 1:
+                    signal_attrs["interpretation"] = "spectrum"
+                elif data_dim == 2:
+                    signal_attrs["interpretation"] = "image"
+                elif data_dim == 3:
+                    signal_attrs["interpretation"] = "image"
+
+                signal_dataset = MDADataset(
+                    "signal", det.data, signal_attrs, parent=nxdata_group
+                )
+                nxdata_group._children["signal"] = signal_dataset
+
+                # Add axis datasets (1D only for NXdata)
+                axes_names = []
+                for j in range(data_dim):
+                    if j < len(self._scan_dim.p):
+                        # For 2D data, we need to use positioners from the correct dimensions
+                        # Y-axis (j=0): use dimension_1 positioner (282-582)
+                        # X-axis (j=1): use dimension_2 positioner (1.92-2.08)
+                        if data_dim == 2:
+                            # Get the root file to access other dimensions
+                            root_file = self
+                            while (
+                                hasattr(root_file, "parent")
+                                and root_file.parent is not None
+                            ):
+                                root_file = root_file.parent
+
+                            if j == 0:
+                                # Use dimension_1 positioner for Y-axis
+                                try:
+                                    dim1 = root_file["dimension_1"]
+                                    if len(dim1._scan_dim.p) > 0:
+                                        pos = dim1._scan_dim.p[
+                                            0
+                                        ]  # Use first positioner from dimension_1
+                                    else:
+                                        pos = self._scan_dim.p[j]  # Fallback
+                                except:
+                                    pos = self._scan_dim.p[j]  # Fallback
+                            else:
+                                # Use first positioner for X-axis (P1 with range 1.920-2.080)
+                                if len(self._scan_dim.p) > 0:
+                                    pos = self._scan_dim.p[
+                                        0
+                                    ]  # Use first positioner (P1)
+                                else:
+                                    pos = self._scan_dim.p[j]  # Fallback
+                        else:
+                            pos = self._scan_dim.p[j]
+                        axis_name = f"axis_{j}"
+                        axes_names.append(axis_name)
+
+                        # Create 1D axis data for NXdata
+                        if len(pos.data) > 0 and isinstance(pos.data[0], list):
+                            # This is 2D positioner data, extract 1D coordinate
+                            # Check if all rows are identical (1D scan) or if rows vary (2D scan)
+                            first_row = pos.data[0]
+                            all_rows_same = all(row == first_row for row in pos.data)
+
+                            if all_rows_same:
+                                # This is a 1D scan - use the first row as the coordinate
+                                axis_data = first_row
+                            else:
+                                # This is a 2D scan - extract the coordinate that varies
+                                if (
+                                    j == 0
+                                ):  # First axis - extract first column (varies along rows)
+                                    axis_data = [row[0] for row in pos.data]
+                                else:  # Second axis - extract first row (varies along columns)
+                                    axis_data = pos.data[0]
+                        else:
+                            # This is already 1D data
+                            axis_data = pos.data
+
+                        # Ensure axis data is linear for proper calibration
+                        if len(axis_data) > 1:
+                            import numpy as np
+
+                            axis_array = np.asarray(axis_data)
+                            # Create a linear version if the data is not perfectly linear
+                            if not np.allclose(
+                                np.diff(axis_array), np.diff(axis_array)[0], rtol=1e-6
+                            ):
+                                axis_data = np.linspace(
+                                    axis_array.min(), axis_array.max(), len(axis_array)
+                                )
+
+                        axis_attrs = {
+                            "name": pos.name,
+                            "description": pos.desc,
+                            "unit": pos.unit,
+                        }
+                        axis_dataset = MDADataset(
+                            axis_name, axis_data, axis_attrs, parent=nxdata_group
+                        )
+                        nxdata_group._children[axis_name] = axis_dataset
+                    else:
+                        axes_names.append(".")
+
+                # Set NXdata attributes
+                nxdata_group._attrs_dict = {
+                    "NX_class": "NXdata",
+                    "signal": "signal",
+                    "axes": axes_names,
+                }
+
+                self._children[nxdata_name] = nxdata_group
+
+        # Set the first NXdata group as the default
+        if len(self._scan_dim.d) > 0:
+            first_detector = self._scan_dim.d[0]
+            default_nxdata_name = f"nxdata_00_{first_detector.fieldName}"
+            if default_nxdata_name in self._children:
+                self._attrs_dict["default"] = default_nxdata_name
 
         # Add metadata as attributes (only if scan_dim exists)
         if self._scan_dim is not None:
@@ -511,6 +756,10 @@ class MDAGroup(commonh5.Group):
                 "num_detectors": self._scan_dim.nd,
             }.items():
                 self._attrs_dict[key] = value
+
+    def _get_items(self):
+        """Returns the child items as a name-node dictionary."""
+        return self._children
 
     def __getitem__(self, key):
         """Get child by name, supporting full paths"""
